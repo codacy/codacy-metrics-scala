@@ -10,6 +10,8 @@ import utils.Tools._
 
 import scala.util.Try
 
+final case class Declaration(name: String, line: Int)
+
 object ScalaMetrics extends MetricsTool {
   override def apply(source: Source.Directory,
                      language: Option[Language],
@@ -42,19 +44,15 @@ object ScalaMetrics extends MetricsTool {
       case file => Set(Source.File(file.pathAsString))
     }.to[Set]
   }
+  
+  import toolbox.u._
 
-
-  val universe: scala.reflect.api.Universe = toolbox.u
-  private type AST = universe.Tree
-
-  import universe._
-
-  private def isTrait(ast: AST): Boolean = ast match {
+  private def isTrait(ast: Tree): Boolean = ast match {
     case ClassDef(mods, _, _, _) => mods.hasFlag(Flag.TRAIT)
     case _                       => false
   }
 
-  private def traitsIn(ast: AST): List[AST] =
+  private def traitsIn(ast: Tree): List[Tree] =
     ast.children
       .map(traitsIn)
       .:+(if (isTrait(ast)) {
@@ -64,7 +62,7 @@ object ScalaMetrics extends MetricsTool {
       })
       .flatten
 
-  private def isImplicit(ast: AST): Boolean =
+  private def isImplicit(ast: Tree): Boolean =
     (ast match {
       case c: ClassDef => Option(c.mods)
       case c: DefDef   => Option(c.mods)
@@ -74,7 +72,7 @@ object ScalaMetrics extends MetricsTool {
       case _ => Option.empty
     }).exists(_.hasFlag(Flag.IMPLICIT))
 
-  private def implicitsAndTraitsIn(ast: AST): List[AST] =
+  private def implicitsAndTraitsIn(ast: Tree): List[Tree] =
     ast.children
       .map(traitsIn)
       .:+(if (isImplicit(ast) || isTrait(ast)) {
@@ -84,28 +82,10 @@ object ScalaMetrics extends MetricsTool {
       })
       .flatten
 
-  private def astForFileContent(content: String) =
-    treeFor(content).right.map {
-      case ast =>
-        //sadly we have to cast ...
-        val cast = ast.asInstanceOf[AST]
-        //count traits and implicits
-        cast
-    }
+  private def astForFileContent(content: String): Either[String, Tree] =
+    treeFor(content)
 
-  private type Named = AnyRef {
-    def name: String
-  }
-
-  private type Line = AnyRef {
-    def line: Int
-  }
-
-  private type Class_ = Named with Line
-
-  private type Method_ = Named with Line
-
-  private def classesForAst(ast: AST, pNames: List[Name] = List.empty): List[Class_] = {
+  private def classesForAst(ast: Tree, pNames: List[Name] = List.empty): List[Declaration] = {
 
     val names = ast match {
       case name: NameTreeApi => pNames :+ name.name
@@ -115,16 +95,15 @@ object ScalaMetrics extends MetricsTool {
     ast.children.map(classesForAst(_, names)).flatten ++
       (ast match {
         case _ : ClassDef =>
-          List(new {
-            def name = names.map(_.decodedName.toString).reduce(_ + "." + _)
-
-            def line = ast.pos.line
-          })
-        case _ => List.empty[Class_]
+          List(Declaration(
+            name = names.map(_.decodedName.toString).reduce(_ + "." + _),
+            line = ast.pos.line
+      ))
+        case _ => List.empty[Declaration]
       })
   }
 
-  private def methodsForAst(ast: AST, pNames: List[Name] = List.empty): List[Method_] = {
+  private def methodsForAst(ast: Tree, pNames: List[Name] = List.empty): List[Declaration] = {
 
     val names = ast match {
       case name: NameTreeApi => pNames :+ name.name
@@ -134,19 +113,16 @@ object ScalaMetrics extends MetricsTool {
     ast.children.map(methodsForAst(_, names)).flatten ++
       (ast match {
         case _ : DefDef =>
-          val obj: Method_ = new {
-            def name = names.map(_.decodedName.toString).reduce(_ + "." + _)
-
-            def line = ast.pos.line
-
-            //def_.name.decodedName.toString
-          }
+          val obj = Declaration(
+            name = names.map(_.decodedName.toString).reduce(_ + "." + _),
+            line = ast.pos.line
+          )
           List(obj)
-        case _ => List.empty[Method_]
+        case _ => List.empty[Declaration]
       })
   }
 
-  private def buildTimeForAst(implicit ast: AST): Long = {
+  private def buildTimeForAst(implicit ast: Tree): Long = {
     //count traits and implicits
     implicitsAndTraitsIn(ast).size.toLong
   }
@@ -169,20 +145,13 @@ object ScalaMetrics extends MetricsTool {
   }
 
   trait MetricsFunctions {
-    def buildtime(file: java.io.File): Either[Error, Long]
-    def classes(file: java.io.File): Either[Error, Seq[Method_]]
-    def methods(file: java.io.File): Either[Error, Seq[Class_]]
+    def classes(file: java.io.File): Either[Error, Seq[Declaration]]
+    def methods(file: java.io.File): Either[Error, Seq[Declaration]]
   }
 
   def metricsFunctions(files: Seq[java.io.File]): MetricsFunctions = {
     val mapping = analysed(files)
     new MetricsFunctions {
-      def buildtime(f: java.io.File) =
-          mapping.get(f) match {
-            case Some(Right((bt, _, _))) => Right(bt)
-            case _                       => Left(new Error(s"no buildtime for file: ${f.getName}"))
-          }
-
       def classes(f: java.io.File) =
           mapping.get(f) match {
             case Some(Right((_, cs, _))) => Right(cs)

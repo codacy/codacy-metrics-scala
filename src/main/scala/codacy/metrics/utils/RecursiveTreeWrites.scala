@@ -6,12 +6,11 @@ import play.api.libs.json._
 
 import scala.language.postfixOps
 
-trait RecursiveTreeWrites extends BuildingBlockWrites {
-  self: AnyRef { val universe: scala.reflect.api.Universe } =>
+trait RecursiveTreeWrites[U <: scala.reflect.api.Universe] extends BuildingBlockWrites[U] {
 
-  import universe._
+  import toolbox.u._
 
-  def treeWrites(flavours: OWrites[Tree]*): OWrites[Tree] = new OWrites[Tree] {
+  def treeWrites(flavours: OWrites[toolbox.u.Tree]*): OWrites[toolbox.u.Tree] = new OWrites[toolbox.u.Tree] {
     self: OWrites[Tree] =>
 
     //this is to be able to use self as owrite for lists of trees

@@ -15,12 +15,15 @@ object ReflectiveParserOps {
 
   lazy val toolbox = runtimeMirror(getClass.getClassLoader).mkToolBox()
   //check if it start with package then packagename then optional ';' then body
-  private lazy val tbParser = ReflectiveScalaParser(toolbox)
+  lazy val tbParser = ReflectiveScalaParser(toolbox)
 
   def parsed(file: File): Either[String, JsValue] = {
     val contents = FileContents.getLines(file).map(_.mkString("\n")).getOrElse("")
     parsed(contents, Some(file.getCanonicalPath))
   }
+
+  def treeFor(sourceCode: String) =
+    tbParser.treeFor(sourceCode)
 
   def parsed(sourceCode: String, filename: Option[String] = None): Either[String, JsValue] = {
 
@@ -34,7 +37,7 @@ object ReflectiveParserOps {
     }
 
     //TODO: hack due to package bug
-    treeFor(sourceCode).left.map {
+    tbParser.treeFor(sourceCode).left.map {
       case message =>
         Logger.trace(filename.map("In file " + _ + ":").getOrElse(":") + message)
         message
@@ -54,21 +57,39 @@ object ReflectiveParserOps {
 
       Writes.list(tbParser.DefaultTreeWrites).writes(r)
          */
-        tbParser.DefaultTreeWrites.writes(t.asInstanceOf[tbParser.Tree])
+        tbParser.DefaultTreeWrites.writes(t)
     }
 
   }
 
-  def treeFor(sourceCode: String): Either[String, Tree] = {
-    Try(toolbox.parse(sourceCode)).recoverWith {
-      case _: ToolBoxError =>
-        Try(toolbox.parse(packagesProtected(sourceCode)))
-    } match {
-      case Success(tree)                     => Right(tree)
-      case Failure(ToolBoxError(message, _)) => Left(message)
-      case f: Failure[_]                     => Left(f.exception.getMessage)
+}
+
+abstract class ReflectiveScalaParser[U <: scala.reflect.api.Universe](val toolbox: scala.tools.reflect.ToolBox[U]) {
+
+  import play.api.libs.json._
+
+  def DefaultTreeWrites: OWrites[toolbox.u.Tree]
+  def treeFor(sourceCode: String): Either[String, toolbox.u.Tree]
+}
+
+object ReflectiveScalaParser {
+
+  def apply[U <: scala.reflect.api.Universe](toolbox: scala.tools.reflect.ToolBox[U]): ReflectiveScalaParser[U] =
+    new ReflectiveScalaParser[U](toolbox) with RecursiveTreeWrites[U] with OtherWrites[U] with TypeWrites[U] {
+
+      lazy val DefaultTreeWrites = treeWrites( /*TypeWrites,*/ LogicalTypeWrites, StartLineWrites)
+
+      def treeFor(sourceCode: String): Either[String, toolbox.u.Tree] = {
+        Try(toolbox.parse(sourceCode)).recoverWith {
+          case _: ToolBoxError =>
+            Try(toolbox.parse(packagesProtected(sourceCode)))
+        } match {
+          case Success(tree)                     => Right(tree)
+          case Failure(ToolBoxError(message, _)) => Left(message)
+          case f: Failure[_]                     => Left(f.exception.getMessage)
+        }
+      }
     }
-  }
 
   /*toolbox.parse hangs on files that have packages!
    * this still has a bug: you cannot have a string that contains package
@@ -108,17 +129,20 @@ object ReflectiveParserOps {
 
   }
 
+
+
+
   private def isInString(pre: String) = {
     //if pre is opening
     // first simple strings aka \"
     val lastNewLinePos = pre.lastIndexOf(System.lineSeparator())
     val thisLine = pre.drop(lastNewLinePos + 1)
     //see number of " if it's even we are fine if it's odd we are inside a string
-    val isInSimpleString = thisLine.filter(_ == '\"').size % 2 == 1
+    val isInSimpleString = thisLine.filter(_ == '\"').size % 2 != 0
     //then check if it's inside a complex string aka "\"\"\""
     val trippleString = "\"\"\""
 
-    val isInTrippleString = trippleString.r.findAllMatchIn(pre).length % 2 == 1
+    val isInTrippleString = trippleString.r.findAllMatchIn(pre).length % 2 != 0
 
     isInSimpleString.||(isInTrippleString)
   }
@@ -147,31 +171,4 @@ object ReflectiveParserOps {
   }
 
   private def isPartOfName(suffix: String): Boolean = suffix.headOption.map(!Character.isWhitespace(_)).getOrElse(false)
-
-}
-
-trait ReflectiveScalaParser {
-
-  import play.api.libs.json._
-
-  type Tree = universe.Tree
-  val universe: scala.reflect.api.Universe
-
-  def DefaultTreeWrites: OWrites[Tree]
-}
-
-object ReflectiveScalaParser {
-
-  def apply(uni: scala.reflect.api.Universe): ReflectiveScalaParser =
-    new ReflectiveScalaParser with RecursiveTreeWrites with OtherWrites {
-      lazy val universe = uni
-      lazy val DefaultTreeWrites = treeWrites(LogicalTypeWrites, StartLineWrites)
-    }
-
-  def apply[U <: scala.reflect.api.Universe](tb: scala.tools.reflect.ToolBox[U]): ReflectiveScalaParser =
-    new ReflectiveScalaParser with RecursiveTreeWrites with OtherWrites with TypeWrites[U] {
-      lazy val toolbox = tb
-      lazy val DefaultTreeWrites = treeWrites( /*TypeWrites,*/ LogicalTypeWrites, StartLineWrites)
-    }
-
 }

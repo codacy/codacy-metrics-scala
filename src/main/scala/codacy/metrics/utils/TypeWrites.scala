@@ -9,12 +9,10 @@ trait TypeWrites[U <: scala.reflect.api.Universe] {
 
   def toolbox: scala.tools.reflect.ToolBox[U]
 
-  private lazy val tb = toolbox
-  lazy val universe = tb.u
+  lazy val tb = toolbox
 
-  import universe._
+  import tb.u._
 
-  //private lazy val freeOptionType = tb.u.typeOf[Option[_]]
   private type Symbol = tb.u.Symbol
   private implicit lazy val SymbolWrites = Writes((ts: Symbol) => Json.toJson(ts.fullName))
 
@@ -32,15 +30,13 @@ trait TypeWrites[U <: scala.reflect.api.Universe] {
 
   lazy val TypeWrites =
     OWrites.nullable((__ \ "type"))(TypeSymbolWrites).contramap { (tree: Tree) =>
-      val cast = tree.asInstanceOf[tb.u.Tree]
       //try typechecking it, this will fail on already checked trees
       val mTyped =
         try {
-
-          Option(tb.typecheck(cast))
+          Option(tb.typecheck(tree))
         } catch {
-          case scala.tools.reflect.ToolBoxError(msg, _) if msg.contains("already typed") => Option(cast)
-          case _: Throwable                                                          => Option.empty
+          case scala.tools.reflect.ToolBoxError(msg, _) if msg.contains("already typed") => Option(tree)
+          case NonFatal(_)                                                               => Option.empty
         }
 
       mTyped.flatMap {

@@ -5,10 +5,13 @@ import play.api.libs.functional.syntax._
 import play.api.libs.json.Writes._
 import play.api.libs.json._
 
-trait BuildingBlockWrites {
-  self: AnyRef { val universe: scala.reflect.api.Universe } =>
+import scala.tools.reflect.ToolBox
 
-  import universe._
+trait BuildingBlockWrites[U <: scala.reflect.api.Universe] {
+
+  val toolbox: ToolBox[U]
+
+  import toolbox.u._
   import Flag._
 
   implicit lazy val nameWrites = Writes((n: Name) => Json.toJson(n.decodedName.toString))

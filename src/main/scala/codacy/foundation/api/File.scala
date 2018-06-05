@@ -9,19 +9,19 @@ import play.api.libs.json.Json
 import scala.io.{Codec, Source}
 import scala.util.control.NonFatal
 
-case class FileStoreId(id: Long)
+final case class FileStoreId(id: Long)
 
-case class FileSource(id: FileStoreId, filename: String, contents: String)
+final case class FileSource(id: FileStoreId, filename: String, contents: String)
 
-case class File(name: String, changed: Boolean, ignored: Boolean)
+final case class File(name: String, changed: Boolean, ignored: Boolean)
 
 object File {
   implicit val fileFmt = Json.format[File]
 }
 
-case class FileError(filename: String, line: Int, cause: String)
+final case class FileError(filename: String, line: Int, cause: String)
 
-case class FileContents(contents: Seq[String]) {
+final case class FileContents(contents: Seq[String]) {
   val getLines = (start: Int, end: Int) => FileContents.getLines(contents, start, end)
 }
 

@@ -5,11 +5,12 @@ import play.api.libs.functional.syntax._
 import play.api.libs.json._
 
 import scala.reflect.internal.util._
+import scala.tools.reflect.ToolBox
 
-trait OtherWrites {
-  self: AnyRef { val universe: scala.reflect.api.Universe } =>
+trait OtherWrites[U <: scala.reflect.api.Universe] {
+  val toolbox: ToolBox[U]
 
-  import universe._
+  import toolbox.u._
 
   lazy val LogicalTypeWrites = (
     (__ \ "logicalType").writeNullable[String].contramap((_: Tree).getClass.toString.split('$').lastOption)

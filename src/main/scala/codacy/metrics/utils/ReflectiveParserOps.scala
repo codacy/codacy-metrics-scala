@@ -1,12 +1,6 @@
 package codacy.metrics.utils
 
 
-import java.io.File
-
-import codacy.foundation.api.FileContents
-import codacy.other.Logger
-import play.api.libs.json._
-
 import scala.reflect.runtime.universe._
 import scala.tools.reflect.{ToolBox, ToolBoxError}
 import scala.util.{Failure, Success, Try}
@@ -15,81 +9,26 @@ object ReflectiveParserOps {
 
   lazy val toolbox = runtimeMirror(getClass.getClassLoader).mkToolBox()
   //check if it start with package then packagename then optional ';' then body
-  lazy val tbParser = ReflectiveScalaParser(toolbox)
-
-  def parsed(file: File): Either[String, JsValue] = {
-    val contents = FileContents.getLines(file).map(_.mkString("\n")).getOrElse("")
-    parsed(contents, Some(file.getCanonicalPath))
-  }
+  lazy val tbParser = new ReflectiveScalaParser(toolbox)
 
   def treeFor(sourceCode: String) =
     tbParser.treeFor(sourceCode)
 
-  def parsed(sourceCode: String, filename: Option[String] = None): Either[String, JsValue] = {
+}
 
-    def packagesRemoved(tree: Tree): List[Tree] = {
+class ReflectiveScalaParser[U <: scala.reflect.api.Universe](val toolbox: scala.tools.reflect.ToolBox[U]) {
 
-      //if it is a package definition
-      tree match {
-        case PackageDef(_, ts) => ts.map(packagesRemoved).flatten
-        case _                 => List(tree)
-      }
+  def treeFor(sourceCode: String): Either[String, toolbox.u.Tree] = {
+    Try(toolbox.parse(sourceCode)).recoverWith {
+      case _: ToolBoxError =>
+        Try(toolbox.parse(packagesProtected(sourceCode)))
+    } match {
+      case Success(tree)                     => Right(tree)
+      case Failure(ToolBoxError(message, _)) => Left(message)
+      case f: Failure[_]                     => Left(f.exception.getMessage)
     }
-
-    //TODO: hack due to package bug
-    tbParser.treeFor(sourceCode).left.map {
-      case message =>
-        Logger.trace(filename.map("In file " + _ + ":").getOrElse(":") + message)
-        message
-    }.right.map {
-      case t =>
-        /*val subtrees = packagesRemoved(t)
-      val r =
-        subtrees.map { case tree =>
-          try {
-            toolbox.typecheck(tree)
-          }
-          catch {
-            case NonFatal(e) => tree
-          }
-        }.map(_.asInstanceOf[tbParser.Tree])
-
-
-      Writes.list(tbParser.DefaultTreeWrites).writes(r)
-         */
-        tbParser.DefaultTreeWrites.writes(t)
-    }
-
   }
 
-}
-
-abstract class ReflectiveScalaParser[U <: scala.reflect.api.Universe](val toolbox: scala.tools.reflect.ToolBox[U]) {
-
-  import play.api.libs.json._
-
-  def DefaultTreeWrites: OWrites[toolbox.u.Tree]
-  def treeFor(sourceCode: String): Either[String, toolbox.u.Tree]
-}
-
-object ReflectiveScalaParser {
-
-  def apply[U <: scala.reflect.api.Universe](toolbox: scala.tools.reflect.ToolBox[U]): ReflectiveScalaParser[U] =
-    new ReflectiveScalaParser[U](toolbox) with RecursiveTreeWrites[U] with OtherWrites[U] with TypeWrites[U] {
-
-      lazy val DefaultTreeWrites = treeWrites( /*TypeWrites,*/ LogicalTypeWrites, StartLineWrites)
-
-      def treeFor(sourceCode: String): Either[String, toolbox.u.Tree] = {
-        Try(toolbox.parse(sourceCode)).recoverWith {
-          case _: ToolBoxError =>
-            Try(toolbox.parse(packagesProtected(sourceCode)))
-        } match {
-          case Success(tree)                     => Right(tree)
-          case Failure(ToolBoxError(message, _)) => Left(message)
-          case f: Failure[_]                     => Left(f.exception.getMessage)
-        }
-      }
-    }
 
   /*toolbox.parse hangs on files that have packages!
    * this still has a bug: you cannot have a string that contains package
@@ -129,9 +68,6 @@ object ReflectiveScalaParser {
 
   }
 
-
-
-
   private def isInString(pre: String) = {
     //if pre is opening
     // first simple strings aka \"
@@ -167,7 +103,7 @@ object ReflectiveScalaParser {
     lazy val isOpenBracket: Boolean = char == '{'
     lazy val isSemiColon: Boolean = char == ';'
 
-    isWhitespace.||(isSemiColon).||(isOpenBracket)
+    isWhitespace || isSemiColon || isOpenBracket
   }
 
   private def isPartOfName(suffix: String): Boolean = suffix.headOption.map(!Character.isWhitespace(_)).getOrElse(false)

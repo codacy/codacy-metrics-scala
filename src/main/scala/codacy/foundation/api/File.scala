@@ -8,6 +8,7 @@ import play.api.libs.json.Json
 
 import scala.io.{Codec, Source}
 import scala.util.control.NonFatal
+import play.api.libs.json.OFormat
 
 final case class FileStoreId(id: Long)
 
@@ -16,7 +17,7 @@ final case class FileSource(id: FileStoreId, filename: String, contents: String)
 final case class File(name: String, changed: Boolean, ignored: Boolean)
 
 object File {
-  implicit val fileFmt = Json.format[File]
+  implicit val fileFmt: OFormat[File] = Json.format[File]
 }
 
 final case class FileError(filename: String, line: Int, cause: String)

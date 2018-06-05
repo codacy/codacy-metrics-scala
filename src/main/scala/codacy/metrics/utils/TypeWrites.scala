@@ -4,6 +4,7 @@ import play.api.libs.functional.syntax._
 import play.api.libs.json._
 
 import scala.util.control.NonFatal
+import play.api.libs.json.Writes
 
 trait TypeWrites[U <: scala.reflect.api.Universe] {
 
@@ -14,7 +15,7 @@ trait TypeWrites[U <: scala.reflect.api.Universe] {
   import tb.u._
 
   private type Symbol = tb.u.Symbol
-  private implicit lazy val SymbolWrites = Writes((ts: Symbol) => Json.toJson(ts.fullName))
+  private implicit lazy val SymbolWrites: Writes[TypeWrites.this.Symbol] = Writes((ts: Symbol) => Json.toJson(ts.fullName))
 
   private lazy val TypeSymbolWrites = (
     (__ \ "fullName").write[Symbol] and

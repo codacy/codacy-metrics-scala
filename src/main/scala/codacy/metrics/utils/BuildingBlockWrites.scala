@@ -6,6 +6,7 @@ import play.api.libs.json.Writes._
 import play.api.libs.json._
 
 import scala.tools.reflect.ToolBox
+import play.api.libs.json.Writes
 
 trait BuildingBlockWrites[U <: scala.reflect.api.Universe] {
 
@@ -14,7 +15,7 @@ trait BuildingBlockWrites[U <: scala.reflect.api.Universe] {
   import toolbox.u._
   import Flag._
 
-  implicit lazy val nameWrites = Writes((n: Name) => Json.toJson(n.decodedName.toString))
+  implicit lazy val nameWrites: Writes[Name] = Writes((n: Name) => Json.toJson(n.decodedName.toString))
   private lazy val allFlags = Map(TRAIT -> "TRAIT",
     INTERFACE -> "INTERFACE",
     MUTABLE -> "MUTABLE",

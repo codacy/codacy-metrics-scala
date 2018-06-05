@@ -40,7 +40,7 @@ trait TypeWrites[U <: scala.reflect.api.Universe] {
           Option(tb.typecheck(cast))
         } catch {
           case scala.tools.reflect.ToolBoxError(msg, _) if msg.contains("already typed") => Option(cast)
-          case other: Throwable                                                          => Option.empty
+          case _: Throwable                                                          => Option.empty
         }
 
       mTyped.flatMap {

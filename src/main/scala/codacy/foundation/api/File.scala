@@ -56,7 +56,7 @@ object FileContents {
           source.getLines().toList
       }
     } catch {
-      case NonFatal(e) =>
+      case NonFatal(_) =>
         Logger.warn(s"Failed to read file: $filename")
         None
     } finally {

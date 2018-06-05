@@ -7,23 +7,15 @@ import codacy.foundation.api.FileContents
 import codacy.other.Logger
 import play.api.libs.json._
 
-import scala.reflect.internal.util.BatchSourceFile
-import scala.reflect.io.VirtualFile
 import scala.reflect.runtime.universe._
-import scala.tools.nsc.Settings
-import scala.tools.nsc.interactive.Global
-import scala.tools.nsc.reporters.{StoreReporter, _}
 import scala.tools.reflect.{ToolBox, ToolBoxError}
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
 object ReflectiveParserOps {
 
   lazy val toolbox = runtimeMirror(getClass.getClassLoader).mkToolBox()
   //check if it start with package then packagename then optional ';' then body
-  private lazy val PackageExpr = """([\s\S]*)(package\s+[^\s;]+\s*)(;?)([\s\S]*)""".r
   private lazy val tbParser = ReflectiveScalaParser(toolbox)
-  private lazy val uniParser = ReflectiveScalaParser(scala.reflect.runtime.universe)
 
   def parsed(file: File): Either[String, JsValue] = {
     val contents = FileContents.getLines(file).map(_.mkString("\n")).getOrElse("")
@@ -155,31 +147,6 @@ object ReflectiveParserOps {
   }
 
   private def isPartOfName(suffix: String): Boolean = suffix.headOption.map(!Character.isWhitespace(_)).getOrElse(false)
-
-  /* TODO: this is not working the error is:
-   * scala.reflect.internal.FatalError: package scala does not have a member Int
-   * http://blog.jetbrains.com/scala/2014/06/10/scala-and-play-2-0-plugins-update-0-38-437-is-out/
-   *   says it's a known bug, not reproducible and happens from time to time on mac ???
-   *   update: happens on ubuntu too :(
-   * this was supposed to be a fallback parse in case toolbox is not working
-   * */
-  private def parsed2(sourceCode: String, filename: Option[String] = None): Either[String, JsObject] = {
-
-    lazy val settings = new Settings
-    settings.usejavacp.value = true
-
-    lazy val compiler = new Global(settings, new StoreReporter)
-    val source = new BatchSourceFile(new VirtualFile("unnamed"), sourceCode)
-
-    val tree = try {
-      compiler.parseTree(source)
-    } catch {
-      case NonFatal(e) => e.printStackTrace()
-    }
-
-    Right(uniParser.DefaultTreeWrites.writes(tree.asInstanceOf[uniParser.universe.Tree]))
-    ???
-  }
 
 }
 

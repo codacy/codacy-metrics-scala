@@ -17,9 +17,8 @@ object ScalaMetrics extends MetricsTool {
                      options: Map[MetricsConfiguration.Key, MetricsConfiguration.Value]): Try[List[FileMetrics]] = {
 
     Try {
-      //TODO
       val filesSeq: List[(Source.File, java.io.File)] = files.getOrElse(allFilesIn(new java.io.File(source.path).toPath)).map(srcFile => (srcFile, new java.io.File(source.path + "/" + srcFile.path)))(collection.breakOut)
-      val metricsFn = metricsFunctions(source.path, filesSeq.map(_._2))
+      val metricsFn = metricsFunctions(filesSeq.map(_._2))
 
       filesSeq.map {
         case (srcFile, ioFile) =>
@@ -33,7 +32,7 @@ object ScalaMetrics extends MetricsTool {
   }
 
   private def allFilesIn(srcPath: Path, relativize: Boolean = true): Set[Source.File] = {
-    val betterSrc =better.files.File(srcPath)
+    val betterSrc = better.files.File(srcPath)
     betterSrc.children.flatMap {
       case dir if dir.isDirectory =>
         if(relativize)
@@ -75,16 +74,6 @@ object ScalaMetrics extends MetricsTool {
       case _ => Option.empty
     }).exists(_.hasFlag(Flag.IMPLICIT))
 
-  private def implicitsIn(ast: AST): List[AST] =
-    ast.children
-      .map(traitsIn)
-      .:+(if (isImplicit(ast)) {
-        List(ast)
-      } else {
-        List.empty
-      })
-      .flatten
-
   private def implicitsAndTraitsIn(ast: AST): List[AST] =
     ast.children
       .map(traitsIn)
@@ -125,7 +114,7 @@ object ScalaMetrics extends MetricsTool {
 
     ast.children.map(classesForAst(_, names)).flatten ++
       (ast match {
-        case class_ : ClassDef =>
+        case _ : ClassDef =>
           List(new {
             def name = names.map(_.decodedName.toString).reduce(_ + "." + _)
 
@@ -144,7 +133,7 @@ object ScalaMetrics extends MetricsTool {
 
     ast.children.map(methodsForAst(_, names)).flatten ++
       (ast match {
-        case def_ : DefDef =>
+        case _ : DefDef =>
           val obj: Method_ = new {
             def name = names.map(_.decodedName.toString).reduce(_ + "." + _)
 
@@ -162,7 +151,7 @@ object ScalaMetrics extends MetricsTool {
     implicitsAndTraitsIn(ast).size.toLong
   }
 
-  private def analysed(files: Seq[java.io.File])(implicit directory: String) = {
+  private def analysed(files: Seq[java.io.File]) = {
     val fileComplexities = files.map {
       case ioFile =>
         val fileContents = readFile(ioFile)
@@ -179,31 +168,28 @@ object ScalaMetrics extends MetricsTool {
     fileComplexities.toMap
   }
 
-  type MetricsFunctions = AnyRef {
-    def buildtime: java.io.File => Either[Error, Long]
-    def classes: java.io.File => Either[Error, Seq[Method_]]
-    def methods: java.io.File => Either[Error, Seq[Class_]]
+  trait MetricsFunctions {
+    def buildtime(file: java.io.File): Either[Error, Long]
+    def classes(file: java.io.File): Either[Error, Seq[Method_]]
+    def methods(file: java.io.File): Either[Error, Seq[Class_]]
   }
 
-  def metricsFunctions(directory: String, files: Seq[java.io.File]): MetricsFunctions = {
-    val mapping = analysed(files)(directory)
-    new {
-      def buildtime =
-        (f: java.io.File) =>
+  def metricsFunctions(files: Seq[java.io.File]): MetricsFunctions = {
+    val mapping = analysed(files)
+    new MetricsFunctions {
+      def buildtime(f: java.io.File) =
           mapping.get(f) match {
             case Some(Right((bt, _, _))) => Right(bt)
             case _                       => Left(new Error(s"no buildtime for file: ${f.getName}"))
           }
 
-      def classes =
-        (f: java.io.File) =>
+      def classes(f: java.io.File) =
           mapping.get(f) match {
             case Some(Right((_, cs, _))) => Right(cs)
             case _                       => Left(new Error(s"no classes for file: ${f.getName}"))
           }
 
-      def methods =
-        (f: java.io.File) =>
+      def methods(f: java.io.File) =
           mapping.get(f) match {
             case Some(Right((_, _, mts))) => Right(mts)
             case _                        => Left(new Error(s"no methods for file: ${f.getName}"))

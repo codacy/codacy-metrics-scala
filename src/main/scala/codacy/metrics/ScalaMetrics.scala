@@ -4,10 +4,9 @@ import java.nio.file.Path
 
 import codacy.docker.api.metrics.{FileMetrics, MetricsTool}
 import codacy.docker.api.{MetricsConfiguration, Source}
-import codacy.metrics.utils.ReflectiveParserOps._
 import com.codacy.api.dtos.Language
 
-import _root_.scala.util.{Properties, Try}
+import scala.util.{Properties, Try}
 
 object ScalaMetrics extends MetricsTool {
   override def apply(source: Source.Directory,
@@ -20,10 +19,13 @@ object ScalaMetrics extends MetricsTool {
 
       filesSeq.map {
         srcFile =>
-          val (classCount, methodCount) = classesAndMethods(Source.File(source.path + "/" + srcFile.path)) match {
+          val fileWithFullPath = Source.File(source.path + "/" + srcFile.path)
+
+          val (classCount, methodCount) = classesAndMethods(fileWithFullPath) match {
             case Some((classes, methods)) => (Some(classes), Some(methods))
             case _ => (None, None)
           }
+
           FileMetrics(
             filename = srcFile.path,
             nrClasses = classCount,
@@ -35,6 +37,7 @@ object ScalaMetrics extends MetricsTool {
 
   private def allFilesIn(srcPath: Path, relativize: Boolean = true): Set[Source.File] = {
     val betterSrc = better.files.File(srcPath)
+
     betterSrc.children.flatMap {
       case dir if dir.isDirectory =>
         if(relativize)
@@ -45,27 +48,13 @@ object ScalaMetrics extends MetricsTool {
     }.to[Set]
   }
 
-  private def readFile(file: Source.File) = {
+  private def classesAndMethods(ioFile: Source.File): Option[(Int, Int)] = {
+    val fileContent = readFile(ioFile)
+    ScalaParser.treeFor(fileContent).toOption.map(ScalaParser.countClassesAndMethods)
+  }
+
+  private def readFile(file: Source.File): String = {
     better.files.File(file.path).lines.mkString(Properties.lineSeparator)
   }
 
-  import toolbox.u._
-
-  private def countClassesAndMethods(ast: Tree): (Int, Int) = {
-    val countOnThisNode = ast match {
-      case _: DefDef => (0, 1)
-      case _: ClassDef => (1, 0)
-      case _ => (0, 0)
-    }
-
-    ast.children.map(countClassesAndMethods).fold(countOnThisNode) {
-      case ((c1, m1), (c2, m2)) =>
-        (c1 + c2, m1 + m2)
-    }
-  }
-
-  private def classesAndMethods(ioFile: Source.File) = {
-    val fileContent = readFile(ioFile)
-    treeFor(fileContent).toOption.map(countClassesAndMethods)
-  }
 }

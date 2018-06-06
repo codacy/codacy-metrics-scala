@@ -1,22 +1,34 @@
-package codacy.metrics.utils
-
+package codacy.metrics
 
 import scala.reflect.runtime.universe._
 import scala.tools.reflect.{ToolBox, ToolBoxError}
 import scala.util.{Failure, Success, Try}
 
-object ReflectiveParserOps {
+object ScalaParser {
 
   lazy val toolbox = runtimeMirror(getClass.getClassLoader).mkToolBox()
-  //check if it start with package then packagename then optional ';' then body
-  lazy val tbParser = new ReflectiveScalaParser(toolbox)
+  lazy val parser = new ScalaParser(toolbox)
 
-  def treeFor(sourceCode: String) =
-    tbParser.treeFor(sourceCode)
+  def treeFor(sourceCode: String): Either[String, parser.toolbox.u.Tree] = {
+    parser.treeFor(sourceCode)
+  }
+
+  def countClassesAndMethods(ast: Tree): (Int, Int) = {
+    val countOnThisNode = ast match {
+      case _: DefDef => (0, 1)
+      case _: ClassDef => (1, 0)
+      case _ => (0, 0)
+    }
+
+    ast.children.map(countClassesAndMethods).fold(countOnThisNode) {
+      case ((c1, m1), (c2, m2)) =>
+        (c1 + c2, m1 + m2)
+    }
+  }
 
 }
 
-class ReflectiveScalaParser[U <: scala.reflect.api.Universe](val toolbox: scala.tools.reflect.ToolBox[U]) {
+class ScalaParser[U <: scala.reflect.api.Universe](val toolbox: scala.tools.reflect.ToolBox[U]) {
 
   def treeFor(sourceCode: String): Either[String, toolbox.u.Tree] = {
     Try(toolbox.parse(sourceCode)).recoverWith {
@@ -106,5 +118,7 @@ class ReflectiveScalaParser[U <: scala.reflect.api.Universe](val toolbox: scala.
     isWhitespace || isSemiColon || isOpenBracket
   }
 
-  private def isPartOfName(suffix: String): Boolean = suffix.headOption.map(!Character.isWhitespace(_)).getOrElse(false)
+  private def isPartOfName(suffix: String): Boolean = {
+    suffix.headOption.exists(!Character.isWhitespace(_))
+  }
 }

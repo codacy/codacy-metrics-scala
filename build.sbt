@@ -1,6 +1,6 @@
-name := """codacy-metrics-scala"""
+val nameStr = """codacy-metrics-scala"""
 
-version := "1.0.0-SNAPSHOT"
+val versionStr = "1.0.0-SNAPSHOT"
 
 val scalaBinaryVersionNumber = "2.12"
 val scalaVersionNumber = s"$scalaBinaryVersionNumber.4"
@@ -20,11 +20,11 @@ lazy val codacyMetricsScala = project
       List(
         organization := "com.codacy",
         scalaVersion := scalaVersionNumber,
-        version := "0.1.0-SNAPSHOT",
+        version := versionStr,
         scalacOptions ++= Common.compilerFlags,
         scalacOptions in Test ++= Seq("-Yrangepos"),
         scalacOptions in (Compile, console) --= Seq("-Ywarn-unused:imports", "-Xfatal-warnings"))),
-    name := "codacy-analysis-cli",
+    name := nameStr,
     // App Dependencies
     libraryDependencies ++= Seq(Dependencies.Codacy.metricsSeed, Dependencies.scalalibrary, Dependencies.scalaCompiler, Dependencies.xml),
     // Test Dependencies

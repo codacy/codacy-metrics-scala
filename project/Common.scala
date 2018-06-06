@@ -18,7 +18,21 @@ object Common {
     defaultLinuxInstallLocation in Docker := defaultDockerInstallationPath,
     daemonUser in Docker := "docker",
     dockerEntrypoint := Seq(s"$defaultDockerInstallationPath/bin/${name.value}"),
-    dockerCmd := Seq())
+    dockerCmd := Seq(),
+    dockerCommands := dockerCommands.value.flatMap {
+      case cmd @ Cmd("ADD", _) =>
+        List(
+          Cmd("RUN", "adduser -u 2004 -D docker"),
+          cmd,
+          Cmd(
+            "RUN",
+            s"""apk update &&
+               |apk add bash &&
+               |rm -rf /tmp/* &&
+               |rm -rf /var/cache/apk/*""".stripMargin.replaceAll(System.lineSeparator(), " ")))
+
+      case other => List(other)
+    })
 
   val compilerFlags: Seq[String] = Seq(
     "-deprecation", // Emit warning and location for usages of deprecated APIs.

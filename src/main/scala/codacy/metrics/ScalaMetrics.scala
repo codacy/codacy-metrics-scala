@@ -17,20 +17,15 @@ object ScalaMetrics extends MetricsTool {
     Try {
       val filesSeq: Set[Source.File] = files.getOrElse(allFilesIn(new java.io.File(source.path).toPath))
 
-      filesSeq.map {
-        srcFile =>
-          val fileWithFullPath = Source.File(source.path + "/" + srcFile.path)
+      filesSeq.map { srcFile =>
+        val fileWithFullPath = Source.File(source.path + "/" + srcFile.path)
 
-          val (classCount, methodCount) = classesAndMethods(fileWithFullPath) match {
-            case Some((classes, methods)) => (Some(classes), Some(methods))
-            case _ => (None, None)
-          }
+        val (classCount, methodCount) = classesAndMethods(fileWithFullPath) match {
+          case Some((classes, methods)) => (Some(classes), Some(methods))
+          case _                        => (None, None)
+        }
 
-          FileMetrics(
-            filename = srcFile.path,
-            nrClasses = classCount,
-            nrMethods = methodCount
-          )
+        FileMetrics(filename = srcFile.path, nrClasses = classCount, nrMethods = methodCount)
       }(collection.breakOut)
     }
   }
@@ -40,8 +35,9 @@ object ScalaMetrics extends MetricsTool {
 
     betterSrc.children.flatMap {
       case dir if dir.isDirectory =>
-        if(relativize)
-          allFilesIn(dir.path, false).map(srcFile => Source.File(betterSrc.relativize(better.files.File(srcFile.path)).toString))
+        if (relativize)
+          allFilesIn(dir.path, false).map(srcFile =>
+            Source.File(betterSrc.relativize(better.files.File(srcFile.path)).toString))
         else
           allFilesIn(dir.path)
       case file => Set(Source.File(file.pathAsString))

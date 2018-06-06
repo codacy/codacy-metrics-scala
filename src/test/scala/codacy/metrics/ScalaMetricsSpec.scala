@@ -8,7 +8,8 @@ import scala.util.Success
 
 class ScalaMetricsSpec extends Specification {
 
-  val dummyScalaFileMetrics = FileMetrics("codacy/metrics/DummyScalaFile.scala", nrClasses = Some(1), nrMethods = Some(2))
+  val dummyScalaFileMetrics =
+    FileMetrics("codacy/metrics/DummyScalaFile.scala", nrClasses = Some(1), nrMethods = Some(2))
   val loggerFileMetrics = FileMetrics("codacy/metrics/Logger.scala", None, nrClasses = Some(1), nrMethods = Some(3))
 
   val targetDir = "src/test/resources"

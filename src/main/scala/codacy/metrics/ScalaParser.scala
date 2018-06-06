@@ -15,9 +15,9 @@ object ScalaParser {
 
   def countClassesAndMethods(ast: Tree): (Int, Int) = {
     val countOnThisNode = ast match {
-      case _: DefDef => (0, 1)
+      case _: DefDef   => (0, 1)
       case _: ClassDef => (1, 0)
-      case _ => (0, 0)
+      case _           => (0, 0)
     }
 
     ast.children.map(countClassesAndMethods).fold(countOnThisNode) {
@@ -41,7 +41,6 @@ class ScalaParser[U <: scala.reflect.api.Universe](val toolbox: scala.tools.refl
     }
   }
 
-
   /*toolbox.parse hangs on files that have packages!
    * this still has a bug: you cannot have a string that contains package
    * eg val t = " package test "
@@ -56,21 +55,21 @@ class ScalaParser[U <: scala.reflect.api.Universe](val toolbox: scala.tools.refl
 
     tokens
       .reduceLeftOption[(String, Int)] {
-      case ((prefix, numBrackets), (suffix, _)) =>
-        if (isPartOfName(suffix) || isOpenComment(prefix) || isProtected(suffix) || isInString(prefix)) {
-          s"$prefix$packageStr$suffix" -> numBrackets
-        } else {
-          //have to add bracket at the end of real name
-          val whiteSpaces = suffix.takeWhile(Character.isWhitespace(_))
-          val suffixNoWhitespaces = suffix.drop(whiteSpaces.length)
-          val name = suffixNoWhitespaces.takeWhile { case char => !isBreaker(char) }
-          val bracketedName = s"$name{"
-          val suffixWithoutName = suffixNoWhitespaces.drop(name.length)
-          val newSuffix = s"$bracketedName$suffixWithoutName"
-          val newBrackets = numBrackets + 1
-          s"$prefix$packageStr$whiteSpaces$newSuffix" -> newBrackets
-        }
-    }
+        case ((prefix, numBrackets), (suffix, _)) =>
+          if (isPartOfName(suffix) || isOpenComment(prefix) || isProtected(suffix) || isInString(prefix)) {
+            s"$prefix$packageStr$suffix" -> numBrackets
+          } else {
+            //have to add bracket at the end of real name
+            val whiteSpaces = suffix.takeWhile(Character.isWhitespace(_))
+            val suffixNoWhitespaces = suffix.drop(whiteSpaces.length)
+            val name = suffixNoWhitespaces.takeWhile { case char => !isBreaker(char) }
+            val bracketedName = s"$name{"
+            val suffixWithoutName = suffixNoWhitespaces.drop(name.length)
+            val newSuffix = s"$bracketedName$suffixWithoutName"
+            val newBrackets = numBrackets + 1
+            s"$prefix$packageStr$whiteSpaces$newSuffix" -> newBrackets
+          }
+      }
       .map {
         case (folded, numClosingBrackets) =>
           val closingBracketsString = (1 to numClosingBrackets).map(_ => "}").mkString

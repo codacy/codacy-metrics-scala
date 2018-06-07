@@ -2,6 +2,7 @@
 
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/3469a50efc164b70be99468dff23e7cd)](https://www.codacy.com/app/Codacy/codacy-metrics-scala?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=codacy/codacy-metrics-scala&amp;utm_campaign=Badge_Grade)
 [![CircleCI](https://circleci.com/gh/codacy/codacy-metrics-scala.svg?style=svg)](https://circleci.com/gh/codacy/codacy-metrics-scala)
+[![Docker Version](https://images.microbadger.com/badges/version/codacy/codacy-metrics-scala.svg)](https://microbadger.com/images/codacy/codacy-metrics-scala "Get your own version badge on microbadger.com")
 
 This is the docker engine we use at Codacy to get Scala class and method counts.
 
@@ -10,7 +11,7 @@ This is the docker engine we use at Codacy to get Scala class and method counts.
 You can create the docker by doing:
 
 ```bash
-sbt docker:publishLocal
+./scripts/publish.sh
 ```
 
 The docker is ran with the following command:
@@ -25,7 +26,7 @@ docker run -it -v $PWD/src/test/resources:/src codacy/codacy-metrics-scala:lates
 Run the tests:
 
 ```bash
-sbt test
+./scripts/test.sh
 ```
 
 ## What is Codacy

@@ -6,7 +6,7 @@ import codacy.docker.api.{MetricsConfiguration, Source}
 import com.codacy.api.dtos.Language
 import com.codacy.docker.api.utils.FileHelper
 
-import scala.util.{Properties, Try}
+import scala.util.Try
 
 object ScalaMetrics extends MetricsTool {
   override def apply(source: Source.Directory,

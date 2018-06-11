@@ -16,18 +16,20 @@ object ScalaMetrics extends MetricsTool {
 
     Try {
       val filesSeq: Set[File] =
-        files.map(_.map(file => File(file.path))).getOrElse(
-          FileHelper.listAllFiles(source.path).map(ioFile => File(ioFile.toPath))(collection.breakOut)
-        )
+        files
+          .map(_.map(file => File(file.path)))
+          .getOrElse(FileHelper.listAllFiles(source.path).map(ioFile => File(ioFile.toPath))(collection.breakOut))
 
       filesSeq.map { file =>
-
         val (classCount, methodCount) = classesAndMethods(file) match {
           case Some((classes, methods)) => (Some(classes), Some(methods))
           case _                        => (None, None)
         }
 
-        FileMetrics(filename = FileHelper.stripPath(file.path.toString, source.path), nrClasses = classCount, nrMethods = methodCount)
+        FileMetrics(
+          filename = FileHelper.stripPath(file.path.toString, source.path),
+          nrClasses = classCount,
+          nrMethods = methodCount)
       }(collection.breakOut)
     }
   }

@@ -32,13 +32,9 @@ object ScalaMetrics extends MetricsTool {
     }
   }
 
-  private def classesAndMethods(ioFile: File): Option[(Int, Int)] = {
-    val fileContent = readFile(ioFile)
+  private def classesAndMethods(file: File): Option[(Int, Int)] = {
+    val fileContent = file.contentAsString
     ScalaParser.treeFor(fileContent).toOption.map(ScalaParser.countClassesAndMethods)
-  }
-
-  private def readFile(file: File): String = {
-    file.lines.mkString(Properties.lineSeparator)
   }
 
 }

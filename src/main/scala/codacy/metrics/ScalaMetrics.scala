@@ -16,9 +16,7 @@ object ScalaMetrics extends MetricsTool {
 
     Try {
       val filesSeq: Set[File] =
-        files
-          .map(_.map(file => File(file.path)))
-          .getOrElse(FileHelper.listAllFiles(source.path).map(ioFile => File(ioFile.toPath))(collection.breakOut))
+        files.map(_.map(file => File(source.path + "/" + file.path))).getOrElse(allRegularFilesIn(source))
 
       filesSeq.map { file =>
         val (classCount, methodCount) = classesAndMethods(file) match {
@@ -27,11 +25,17 @@ object ScalaMetrics extends MetricsTool {
         }
 
         FileMetrics(
-          filename = FileHelper.stripPath(file.path.toString, source.path),
+          filename = File(source.path).relativize(file).toString,
           nrClasses = classCount,
           nrMethods = methodCount)
       }(collection.breakOut)
     }
+  }
+
+  private def allRegularFilesIn(source: Source.Directory): Set[File] = {
+    val allFiles: Set[File] =
+      FileHelper.listAllFiles(source.path).map(ioFile => File(ioFile.toPath))(collection.breakOut)
+    allFiles.filter(_.isRegularFile)
   }
 
   private def classesAndMethods(file: File): Option[(Int, Int)] = {

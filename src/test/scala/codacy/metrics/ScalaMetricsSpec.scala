@@ -1,7 +1,8 @@
 package codacy.metrics
 
-import codacy.docker.api.Source
-import codacy.docker.api.metrics.FileMetrics
+import com.codacy.plugins.api.Source
+import com.codacy.plugins.api.languages.Languages.Scala
+import com.codacy.plugins.api.metrics.FileMetrics
 import org.specs2.mutable.Specification
 
 import scala.util.Success
@@ -19,7 +20,11 @@ class ScalaMetricsSpec extends Specification {
       "all files within a directory" in {
         val expectedFileMetrics = List(dummyScalaFileMetrics, loggerFileMetrics)
         val fileMetricsMap =
-          ScalaMetrics(source = Source.Directory(targetDir), language = None, files = None, options = Map.empty)
+          ScalaMetrics(
+            source = Source.Directory(targetDir),
+            language = Option(Scala),
+            files = None,
+            options = Map.empty)
 
         fileMetricsMap should beLike {
           case Success(elems) => elems should containTheSameElementsAs(expectedFileMetrics)
@@ -31,8 +36,8 @@ class ScalaMetricsSpec extends Specification {
 
         val fileMetricsMap = ScalaMetrics(
           source = Source.Directory(targetDir),
-          language = None,
-          files = Some(Set(Source.File(loggerFileMetrics.filename))),
+          language = Option(Scala),
+          files = Some(Set(Source.File(s"$targetDir/${loggerFileMetrics.filename}"))),
           options = Map.empty)
 
         fileMetricsMap should beLike {
